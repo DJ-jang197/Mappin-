@@ -1,6 +1,9 @@
-# Location Alarm (Chrome Extension, MV3)
+# Location Alarm (Chrome Extension + Web)
 
-Location Alarm is a Chrome Extension for Google Maps. It extracts destination coordinates from the Maps page and stores alarm state for popup-driven monitoring.
+Location Alarm helps you set a destination from Google Maps and get notified when you arrive within a radius.
+
+- **Chrome extension (MV3):** runs on `https://www.google.com/maps/*`, reads URL/DOM in-page, uses the popup for geolocation.
+- **Web app:** works in any modern mobile or desktop browser. You **paste a Google Maps URL** (coordinates must appear in the link), then start monitoring. No Chrome APIs; state is stored in `localStorage` on that origin.
 
 ## Milestone Status
 
@@ -17,6 +20,32 @@ Location Alarm is a Chrome Extension for Google Maps. It extracts destination co
 4. Enable **Developer mode**
 5. Click **Load unpacked**
 6. Select: `C:\Code_Related_Works\VS_Code_Personal\Mappin\Mappin\dist`
+
+## Web app (mobile + desktop)
+
+After `npm run build`, static files are emitted under `dist/web/`:
+
+- `dist/web/index.html` — open in a browser (or host the `dist/web` folder on any static host).
+- `dist/web/webApp.js` — bundled application logic (loaded by `index.html`).
+- `dist/web/manifest.webmanifest` — minimal PWA manifest (`Add to Home Screen` support varies by browser; you can add icons later).
+
+### Mobile flow
+
+1. In the Google Maps app (or mobile browser), open a place and use **Share** → **Copy link**.
+2. Open the Location Alarm web app in your phone browser.
+3. Paste the URL. If the link does **not** contain `@lat,lng` or `?q=lat,lng` with numbers, parsing will fail — open the place until the URL includes coordinates, or use the **Chrome extension** on desktop for DOM fallback.
+4. Optional: set a **Label**.
+5. Tap **Load destination from URL**, then **Start monitoring** and allow location + notifications when prompted.
+
+### Local preview
+
+From the repo root, after a build:
+
+```bash
+npx --yes serve dist -p 4173
+```
+
+Then open `http://localhost:4173/web/` (note the `/web/` path).
 
 ## Manual Test Checklist (M1-M2)
 
@@ -79,7 +108,8 @@ Use this script during local QA and demo recording.
 ### 2) Popup watch activation
 
 - [ ] Set destination from Google Maps
-- [ ] Open popup and confirm status becomes `ACTIVE`
+- [ ] Open popup: it should **not** request location until you tap **Start monitoring** (Chrome needs a user gesture)
+- [ ] Tap **Start monitoring** and allow the location prompt if shown; status becomes `ACTIVE`
 - [ ] Use the **Arrival radius** slider (50m–2km); confirm the label updates and `chrome.storage.sync` stores `radiusMetres`
 - [ ] Confirm distance line shows `arrival ≤ Xm` matching the slider
 - [ ] Confirm distance and accuracy text update while popup stays open

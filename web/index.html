@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a73e8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="description" content="Location alarm: paste a Google Maps link, set a radius, get notified when you arrive." />
+    <title>Location Alarm (Web)</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="header">
+        <h1>Location Alarm</h1>
+        <p class="tagline">Paste a Maps link, start monitoring, get an alert when you are within range.</p>
+      </header>
+
+      <section class="card" aria-labelledby="dest-heading">
+        <h2 id="dest-heading">Destination</h2>
+        <label class="label" for="maps-url">Google Maps URL</label>
+        <textarea
+          id="maps-url"
+          rows="3"
+          placeholder="https://www.google.com/maps/@43.47,-80.54,14z"
+          spellcheck="false"
+        ></textarea>
+        <label class="label" for="label-override">Label (optional)</label>
+        <input id="label-override" type="text" maxlength="200" placeholder="e.g. Home, campus gate" />
+        <button id="load-destination" type="button" class="btn primary">Load destination from URL</button>
+        <p id="parse-note" class="note">
+          This page only reads coordinates from the URL (same rules as the extension’s URL parser). Place-name
+          links without coordinates need a link that includes <code>@lat,lng</code> or <code>?q=lat,lng</code>, or use
+          the Chrome extension for DOM fallback on desktop.
+        </p>
+      </section>
+
+      <section class="card" aria-labelledby="alarm-heading">
+        <h2 id="alarm-heading">Alarm</h2>
+        <p id="status" class="status">IDLE</p>
+        <p id="destination" class="destination"></p>
+
+        <div class="field">
+          <label for="radius-slider">Arrival radius</label>
+          <div class="radius-row">
+            <input type="range" id="radius-slider" min="50" max="2000" step="10" value="200" />
+            <span id="radius-value" class="radius-value">200</span>
+            <span class="unit">m</span>
+          </div>
+        </div>
+
+        <p id="geo-hint" class="hint">
+          On mobile, tap <strong>Start monitoring</strong> so the browser can request your location (required user
+          gesture).
+        </p>
+        <button id="start-monitoring" type="button" class="btn primary" disabled>Start monitoring</button>
+        <button id="clear-alarm" type="button" class="btn secondary">Clear alarm</button>
+
+        <p id="distance" class="metric"></p>
+        <p id="accuracy" class="metric"></p>
+        <p id="error" class="error" role="alert"></p>
+      </section>
+    </main>
+    <script src="webApp.js"></script>
+  </body>
+</html>

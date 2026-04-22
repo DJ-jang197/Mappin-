@@ -9,6 +9,7 @@ const accuracyEl = document.getElementById("accuracy");
 const errorEl = document.getElementById("error");
 const radiusSlider = document.getElementById("radius-slider") as HTMLInputElement | null;
 const radiusValueEl = document.getElementById("radius-value");
+const startButton = document.getElementById("start-monitoring") as HTMLButtonElement | null;
 const refreshButton = document.getElementById("refresh-state");
 
 const GEO_OPTIONS: PositionOptions = {
@@ -25,6 +26,7 @@ if (
   !errorEl ||
   !radiusSlider ||
   !radiusValueEl ||
+  !startButton ||
   !refreshButton
 ) {
   throw new Error("Popup UI missing required elements.");
@@ -38,6 +40,7 @@ const errorNode = errorEl;
 const refreshNode = refreshButton;
 const radiusNode = radiusSlider;
 const radiusValueNode = radiusValueEl;
+const startNode = startButton;
 
 let watchId: number | null = null;
 let latestState: AlarmState | null = null;
@@ -83,6 +86,10 @@ function renderState(state: AlarmState): void {
     distanceNode.textContent = "";
     accuracyNode.textContent = "";
   }
+
+  const canStart = Boolean(state.destination) && !state.hasArrived && watchId === null;
+  startNode.disabled = !canStart;
+  startNode.textContent = watchId !== null ? "Monitoring…" : "Start monitoring";
 }
 
 async function applyRadiusToServiceWorker(radiusMetres: number): Promise<void> {
@@ -148,9 +155,13 @@ function handleGeoPosition(position: GeolocationPosition): void {
 
 function handleGeoError(error: GeolocationPositionError): void {
   if (error.code === error.PERMISSION_DENIED) {
-    errorNode.textContent = "Location permission denied. Enable location access in browser settings.";
+    errorNode.textContent =
+      "Location permission denied. In Chrome: Settings → Privacy and security → Site settings → Location — allow sites to ask, and remove any block for this extension. Then open the popup again and tap Start monitoring.";
     void patchSessionState((state) => ({ ...state, isActive: false }));
     stopWatching();
+    if (latestState) {
+      renderState(latestState);
+    }
     return;
   }
 
@@ -167,7 +178,7 @@ function handleGeoError(error: GeolocationPositionError): void {
   errorNode.textContent = "Unexpected geolocation error occurred.";
 }
 
-function startWatchIfNeeded(): void {
+async function startWatchIfNeeded(): Promise<void> {
   if (!latestState?.destination || latestState.hasArrived || watchId !== null) {
     return;
   }
@@ -177,10 +188,10 @@ function startWatchIfNeeded(): void {
   }
 
   watchId = navigator.geolocation.watchPosition(handleGeoPosition, handleGeoError, GEO_OPTIONS);
-  void patchSessionState((state) => ({ ...state, isActive: true }));
+  await patchSessionState((state) => ({ ...state, isActive: true }));
 }
 
-async function fetchAndRenderState(startWatch = true): Promise<void> {
+async function fetchAndRenderState(startWatch = false): Promise<void> {
   const message: ExtensionMessage = { type: "GET_STATE" };
   const response = await chrome.runtime.sendMessage(message);
   if (!response?.ok || !response.state) {
@@ -190,6 +201,13 @@ async function fetchAndRenderState(startWatch = true): Promise<void> {
 
   latestState = response.state as AlarmState;
   arrivalSent = latestState.hasArrived;
+
+  // Popup was closed: session may still say active even though no watch runs in this document.
+  if (latestState.isActive && watchId === null) {
+    latestState = { ...latestState, isActive: false };
+    await setSessionState(latestState);
+  }
+
   renderState(latestState);
 
   if (!latestState.destination || latestState.hasArrived) {
@@ -198,12 +216,29 @@ async function fetchAndRenderState(startWatch = true): Promise<void> {
   }
 
   if (startWatch) {
-    startWatchIfNeeded();
+    void startWatchIfNeeded();
   }
 }
 
 refreshNode.addEventListener("click", () => {
-  void fetchAndRenderState();
+  void fetchAndRenderState(false);
+});
+
+startNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  void (async () => {
+    if (!latestState) {
+      await fetchAndRenderState(false);
+    }
+    if (!latestState?.destination || latestState.hasArrived) {
+      errorNode.textContent = "Set a destination in Google Maps first, then open this popup again.";
+      return;
+    }
+    if (watchId !== null) {
+      return;
+    }
+    await startWatchIfNeeded();
+  })();
 });
 
 radiusNode.addEventListener("input", () => {
@@ -227,4 +262,4 @@ window.addEventListener("beforeunload", () => {
   void patchSessionState((state) => ({ ...state, isActive: false }));
 });
 
-void fetchAndRenderState();
+void fetchAndRenderState(false);

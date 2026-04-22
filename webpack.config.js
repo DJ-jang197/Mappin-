@@ -6,11 +6,13 @@ module.exports = {
   entry: {
     background: "./src/background.ts",
     content: "./src/content.ts",
-    popup: "./src/popup.ts"
+    popup: "./src/popup.ts",
+    webApp: "./src/webApp.ts"
   },
   output: {
     path: path.resolve(__dirname, "dist"),
-    filename: "[name].js",
+    filename: (pathData) =>
+      pathData.chunk.name === "webApp" ? "web/webApp.js" : "[name].js",
     clean: true
   },
   resolve: {
@@ -34,7 +36,9 @@ module.exports = {
       patterns: [
         { from: "manifest.json", to: "manifest.json" },
         { from: "src/popup.html", to: "popup.html" },
-        { from: "src/styles/popup.css", to: "styles/popup.css" }
+        { from: "src/styles/popup.css", to: "styles/popup.css" },
+        { from: "web/index.html", to: "web/index.html" },
+        { from: "web/manifest.webmanifest", to: "web/manifest.webmanifest" }
       ]
     })
   ]
