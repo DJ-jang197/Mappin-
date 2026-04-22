@@ -1,4 +1,4 @@
-import { AlarmState, ExtensionMessage } from "./utils/types";
+import { AlarmHistoryEntry, AlarmState, ExtensionMessage } from "./utils/types";
 
 const DEFAULT_STATE: AlarmState = {
   destination: null,
@@ -14,6 +14,13 @@ async function getSessionState(): Promise<AlarmState> {
 
 async function setSessionState(next: AlarmState): Promise<void> {
   await chrome.storage.session.set({ alarmState: next });
+}
+
+async function appendArrivalHistory(entry: AlarmHistoryEntry): Promise<void> {
+  const result = await chrome.storage.local.get("alarmHistory");
+  const current = (result.alarmHistory as AlarmHistoryEntry[] | undefined) ?? [];
+  const next = [entry, ...current].slice(0, 5);
+  await chrome.storage.local.set({ alarmHistory: next });
 }
 
 chrome.runtime.onInstalled.addListener(async () => {
@@ -46,7 +53,13 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _, sendResponse
         sendResponse({ ok: true, skipped: true });
         return;
       }
+
+      const historyEntry: AlarmHistoryEntry = {
+        destination: state.destination,
+        arrivedAt: message.payload.arrivedAt
+      };
       await setSessionState({ ...state, hasArrived: true, isActive: false });
+      await appendArrivalHistory(historyEntry);
       chrome.notifications.create({
         type: "basic",
         iconUrl: "icon-128.png",

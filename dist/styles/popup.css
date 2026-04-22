@@ -20,3 +20,8 @@ p {
 button {
   margin-top: 8px;
 }
+
+.error {
+  color: #b00020;
+  min-height: 18px;
+}
