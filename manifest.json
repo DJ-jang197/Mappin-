@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "Location Alarm",
+  "version": "0.1.0",
+  "description": "Set a destination in Google Maps and get alerted on arrival.",
+  "permissions": ["storage", "notifications"],
+  "host_permissions": ["https://www.google.com/maps/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Location Alarm",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.google.com/maps/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
