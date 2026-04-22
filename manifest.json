@@ -3,7 +3,10 @@
   "name": "Location Alarm",
   "version": "0.1.0",
   "description": "Set a destination in Google Maps and get alerted on arrival.",
-  "permissions": ["storage", "notifications"],
+  "icons": {
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["storage", "notifications", "geolocation"],
   "host_permissions": ["https://www.google.com/maps/*"],
   "background": {
     "service_worker": "background.js",

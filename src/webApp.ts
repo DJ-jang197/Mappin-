@@ -211,10 +211,6 @@ function recordArrival(destination: Destination, arrivedAt: number): void {
 }
 
 async function handleArrival(destination: Destination): Promise<void> {
-  if (arrivalNotified) {
-    return;
-  }
-  arrivalNotified = true;
   const arrivedAt = Date.now();
   latestState = { ...latestState, hasArrived: true, isActive: false };
   saveState(latestState);
@@ -247,7 +243,8 @@ function handleGeoPosition(position: GeolocationPosition): void {
       : `GPS accuracy: ${Math.round(accuracyMetres)}m`;
   errorNode.textContent = "";
 
-  if (distanceMetres <= radiusMetres && !latestState.hasArrived) {
+  if (distanceMetres <= radiusMetres && !latestState.hasArrived && !arrivalNotified) {
+    arrivalNotified = true;
     stopWatching();
     void handleArrival(latestState.destination);
   }
@@ -288,6 +285,8 @@ async function startWatchIfNeeded(): Promise<void> {
   latestState = { ...latestState, isActive: true };
   saveState(latestState);
   renderState();
+
+  navigator.geolocation.getCurrentPosition(handleGeoPosition, handleGeoError, GEO_OPTIONS);
 }
 
 loadDestNode.addEventListener("click", () => {

@@ -2,14 +2,14 @@
 
 Location Alarm helps you set a destination from Google Maps and get notified when you arrive within a radius.
 
-- **Chrome extension (MV3):** runs on `https://www.google.com/maps/*`, reads URL/DOM in-page, uses the popup for geolocation.
+- **Chrome extension (MV3):** runs on `https://www.google.com/maps/*`, reads URL/DOM in-page, uses the popup for geolocation (manifest includes the `geolocation` permission required by Chrome for popup `navigator.geolocation`).
 - **Web app:** works in any modern mobile or desktop browser. You **paste a Google Maps URL** (coordinates must appear in the link), then start monitoring. No Chrome APIs; state is stored in `localStorage` on that origin.
 
 ## Milestone Status
 
 - M1: done (scaffold/build/load path working)
 - M2: done (parser + tests implemented)
-- M3: in progress (haversine + popup watchPosition loop implemented)
+- M3: done (Haversine + popup `watchPosition`, arrival flow, notifications icon, GPS edge cases, already-at-destination)
 - M4: not started
 
 ## Build and Load
@@ -133,11 +133,28 @@ Use this script during local QA and demo recording.
 - [ ] Move away and re-enter radius
 - [ ] Confirm notification does not fire repeatedly for the same destination
 
+### 5b) Already at destination
+
+- [ ] Set destination to your current location (or temporarily set a huge radius), tap **Start monitoring**
+- [ ] Confirm arrival triggers promptly (immediate `getCurrentPosition` + watch) without needing to move
+
 ### 6) Local arrival history
 
 - [ ] Trigger arrivals for more than 5 destinations
 - [ ] In service worker console, run `chrome.storage.local.get("alarmHistory")`
 - [ ] Confirm only latest 5 entries are retained
+
+## Troubleshooting
+
+### `PERMISSION_DENIED` right after “Start monitoring” (extension popup)
+
+Chrome’s extension docs require declaring **`"geolocation"`** in `manifest.json` → `permissions` when you use **`navigator.geolocation` in the popup**. If it is missing, Chrome can fail **immediately** with `PERMISSION_DENIED` (same code as a real denial), often **without** a useful prompt — which looks like a settings problem but is actually the manifest.
+
+This project includes `"geolocation"` alongside `"storage"` and `"notifications"`. After changing permissions, run `npm run build` and **reload** the extension (or remove and **Load unpacked** again on `dist`).
+
+You may still see a generic validator note about the `geolocation` permission; for popup geolocation, declaring it is what [Chrome’s geolocation guide](https://developer.chrome.com/docs/extensions/how-to/web-platform/geolocation) describes.
+
+Also check: OS location services on, and Chrome **Settings → Privacy and security → Site settings → Location** allows prompts. For the extension origin, open `chrome://extensions`, copy the extension ID, and if needed reset location for that `chrome-extension://` origin under site settings.
 
 ## Notes
 
@@ -145,3 +162,4 @@ Use this script during local QA and demo recording.
 - Background monitoring stops when popup closes (MVP limitation).
 - Google Maps in iframe/embedded surfaces may not execute content scripts depending on host page policies.
 - This MVP intentionally avoids paid Maps APIs and external geolocation services.
+- `assets/icon-128.png` is a tiny placeholder PNG copied to `dist/icons/` for `chrome.notifications`; swap it for a crisp 128×128 marketing icon when polishing for portfolio.

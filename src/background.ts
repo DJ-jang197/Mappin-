@@ -42,6 +42,31 @@ async function appendArrivalHistory(entry: AlarmHistoryEntry): Promise<void> {
   await chrome.storage.local.set({ alarmHistory: next });
 }
 
+const NOTIFICATION_ICON_URL = chrome.runtime.getURL("icons/icon-128.png");
+
+function showArrivalNotification(label: string): void {
+  chrome.notifications.getPermissionLevel((level) => {
+    if (level === "denied") {
+      console.warn("[location-alarm] Notifications denied at OS/browser level; arrival still recorded.");
+      return;
+    }
+
+    chrome.notifications.create(
+      {
+        type: "basic",
+        iconUrl: NOTIFICATION_ICON_URL,
+        title: "Location reached",
+        message: `You arrived at ${label || "your destination"}.`
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+          console.warn("[location-alarm] Notification failed:", chrome.runtime.lastError.message);
+        }
+      }
+    );
+  });
+}
+
 chrome.runtime.onInstalled.addListener(async (details) => {
   const sync = await chrome.storage.sync.get("radiusMetres");
   if (typeof sync.radiusMetres !== "number") {
@@ -101,12 +126,7 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage, _, sendResponse
       };
       await setSessionState({ ...state, hasArrived: true, isActive: false });
       await appendArrivalHistory(historyEntry);
-      chrome.notifications.create({
-        type: "basic",
-        iconUrl: "icon-128.png",
-        title: "Location reached",
-        message: `You arrived at ${state.destination.label || "your destination"}.`
-      });
+      showArrivalNotification(state.destination.label || "your destination");
       sendResponse({ ok: true, state: await getFullState() });
       return;
     }

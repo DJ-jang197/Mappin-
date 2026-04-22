@@ -38,7 +38,8 @@ module.exports = {
         { from: "src/popup.html", to: "popup.html" },
         { from: "src/styles/popup.css", to: "styles/popup.css" },
         { from: "web/index.html", to: "web/index.html" },
-        { from: "web/manifest.webmanifest", to: "web/manifest.webmanifest" }
+        { from: "web/manifest.webmanifest", to: "web/manifest.webmanifest" },
+        { from: "assets/icon-128.png", to: "icons/icon-128.png" }
       ]
     })
   ]

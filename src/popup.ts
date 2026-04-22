@@ -110,19 +110,7 @@ function stopWatching(): void {
   }
 }
 
-async function notifyArrivedIfNeeded(): Promise<void> {
-  if (arrivalSent) {
-    return;
-  }
-  const message: ExtensionMessage = {
-    type: "ARRIVED",
-    payload: { arrivedAt: Date.now() }
-  };
-  await chrome.runtime.sendMessage(message);
-  arrivalSent = true;
-}
-
-function handleGeoPosition(position: GeolocationPosition): void {
+function applyGeolocationSample(position: GeolocationPosition): void {
   if (!latestState?.destination) {
     stopWatching();
     return;
@@ -146,17 +134,38 @@ function handleGeoPosition(position: GeolocationPosition): void {
       : `GPS accuracy: ${Math.round(accuracyMetres)}m`;
   errorNode.textContent = "";
 
-  if (distanceMetres <= radiusMetres && !latestState.hasArrived) {
-    void patchSessionState((state) => ({ ...state, hasArrived: true, isActive: false }));
-    void notifyArrivedIfNeeded();
+  if (distanceMetres <= radiusMetres && !latestState.hasArrived && !arrivalSent) {
+    arrivalSent = true;
     stopWatching();
+    void (async () => {
+      const message: ExtensionMessage = {
+        type: "ARRIVED",
+        payload: { arrivedAt: Date.now() }
+      };
+      const response = (await chrome.runtime.sendMessage(message)) as {
+        ok?: boolean;
+        skipped?: boolean;
+        state?: AlarmState;
+      };
+      if (response?.ok && response.state) {
+        latestState = response.state;
+      } else if (response?.ok && response.skipped) {
+        await fetchAndRenderState(false);
+      } else {
+        arrivalSent = false;
+        await fetchAndRenderState(false);
+      }
+      if (latestState) {
+        renderState(latestState);
+      }
+    })();
   }
 }
 
 function handleGeoError(error: GeolocationPositionError): void {
   if (error.code === error.PERMISSION_DENIED) {
     errorNode.textContent =
-      "Location permission denied. In Chrome: Settings → Privacy and security → Site settings → Location — allow sites to ask, and remove any block for this extension. Then open the popup again and tap Start monitoring.";
+      "Location permission denied. If you just updated the extension, click Reload on chrome://extensions. Otherwise allow location: Chrome → Settings → Privacy and security → Site settings → Location (sites can ask), enable Windows/macOS location services, then open this popup again and tap Start monitoring.";
     void patchSessionState((state) => ({ ...state, isActive: false }));
     stopWatching();
     if (latestState) {
@@ -187,8 +196,11 @@ async function startWatchIfNeeded(): Promise<void> {
     void Notification.requestPermission();
   }
 
-  watchId = navigator.geolocation.watchPosition(handleGeoPosition, handleGeoError, GEO_OPTIONS);
+  watchId = navigator.geolocation.watchPosition(applyGeolocationSample, handleGeoError, GEO_OPTIONS);
   await patchSessionState((state) => ({ ...state, isActive: true }));
+
+  // Immediate fix: if the user is already inside the radius, the first watch tick may be delayed.
+  navigator.geolocation.getCurrentPosition(applyGeolocationSample, handleGeoError, GEO_OPTIONS);
 }
 
 async function fetchAndRenderState(startWatch = false): Promise<void> {
