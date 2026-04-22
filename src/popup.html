@@ -13,6 +13,22 @@
       <p id="distance"></p>
       <p id="accuracy"></p>
       <p id="error" class="error"></p>
+      <div class="field" id="radius-field">
+        <label for="radius-slider">Arrival radius</label>
+        <div class="radius-row">
+          <input
+            type="range"
+            id="radius-slider"
+            min="50"
+            max="2000"
+            step="10"
+            value="200"
+            aria-label="Arrival radius in metres"
+          />
+          <span id="radius-value" class="radius-value">200</span>
+          <span class="unit">m</span>
+        </div>
+      </div>
       <button id="refresh-state" type="button">Refresh</button>
     </main>
     <script src="popup.js"></script>

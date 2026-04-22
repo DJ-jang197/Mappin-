@@ -7,6 +7,8 @@ const destinationEl = document.getElementById("destination");
 const distanceEl = document.getElementById("distance");
 const accuracyEl = document.getElementById("accuracy");
 const errorEl = document.getElementById("error");
+const radiusSlider = document.getElementById("radius-slider") as HTMLInputElement | null;
+const radiusValueEl = document.getElementById("radius-value");
 const refreshButton = document.getElementById("refresh-state");
 
 const GEO_OPTIONS: PositionOptions = {
@@ -15,7 +17,16 @@ const GEO_OPTIONS: PositionOptions = {
   timeout: 10_000
 };
 
-if (!statusEl || !destinationEl || !distanceEl || !accuracyEl || !errorEl || !refreshButton) {
+if (
+  !statusEl ||
+  !destinationEl ||
+  !distanceEl ||
+  !accuracyEl ||
+  !errorEl ||
+  !radiusSlider ||
+  !radiusValueEl ||
+  !refreshButton
+) {
   throw new Error("Popup UI missing required elements.");
 }
 
@@ -25,10 +36,13 @@ const distanceNode = distanceEl;
 const accuracyNode = accuracyEl;
 const errorNode = errorEl;
 const refreshNode = refreshButton;
+const radiusNode = radiusSlider;
+const radiusValueNode = radiusValueEl;
 
 let watchId: number | null = null;
 let latestState: AlarmState | null = null;
 let arrivalSent = false;
+let radiusDebounce: number | null = null;
 
 async function setSessionState(nextState: AlarmState): Promise<void> {
   await chrome.storage.session.set({ alarmState: nextState });
@@ -61,10 +75,25 @@ function renderState(state: AlarmState): void {
   destinationNode.textContent = state.destination
     ? `${state.destination.label} (${state.destination.coords.lat.toFixed(5)}, ${state.destination.coords.lng.toFixed(5)})`
     : "No destination set yet.";
+
+  radiusNode.value = String(state.radiusMetres);
+  radiusValueNode.textContent = String(state.radiusMetres);
+
   if (!state.destination) {
     distanceNode.textContent = "";
     accuracyNode.textContent = "";
   }
+}
+
+async function applyRadiusToServiceWorker(radiusMetres: number): Promise<void> {
+  const message: ExtensionMessage = { type: "SET_RADIUS", payload: { radiusMetres } };
+  const response = await chrome.runtime.sendMessage(message);
+  if (!response?.ok || !response.state) {
+    return;
+  }
+  latestState = response.state as AlarmState;
+  arrivalSent = latestState.hasArrived;
+  renderState(latestState);
 }
 
 function stopWatching(): void {
@@ -101,7 +130,9 @@ function handleGeoPosition(position: GeolocationPosition): void {
   const radiusMetres = latestState.radiusMetres;
   const distanceMetres = haversine(current, destination);
 
-  distanceNode.textContent = `Distance: ${Math.round(distanceMetres)}m`;
+  distanceNode.textContent = `Distance: ${Math.round(
+    distanceMetres
+  )}m (arrival ≤ ${Math.round(radiusMetres)}m)`;
   accuracyNode.textContent =
     accuracyMetres > 500
       ? `GPS accuracy warning: ${Math.round(accuracyMetres)}m`
@@ -173,6 +204,21 @@ async function fetchAndRenderState(startWatch = true): Promise<void> {
 
 refreshNode.addEventListener("click", () => {
   void fetchAndRenderState();
+});
+
+radiusNode.addEventListener("input", () => {
+  const value = Number(radiusNode.value);
+  if (!Number.isFinite(value)) {
+    return;
+  }
+  radiusValueNode.textContent = String(value);
+  if (radiusDebounce !== null) {
+    window.clearTimeout(radiusDebounce);
+  }
+  radiusDebounce = window.setTimeout(() => {
+    radiusDebounce = null;
+    void applyRadiusToServiceWorker(value);
+  }, 100);
 });
 
 window.addEventListener("beforeunload", () => {

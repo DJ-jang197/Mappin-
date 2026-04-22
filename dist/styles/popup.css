@@ -21,6 +21,38 @@ button {
   margin-top: 8px;
 }
 
+.field {
+  margin-top: 10px;
+}
+
+.field label {
+  display: block;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.radius-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#radius-slider {
+  flex: 1;
+  min-width: 0;
+}
+
+.radius-value {
+  font-variant-numeric: tabular-nums;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.unit {
+  color: #444;
+  font-size: 13px;
+}
+
 .error {
   color: #b00020;
   min-height: 18px;

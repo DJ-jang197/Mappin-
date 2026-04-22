@@ -80,6 +80,8 @@ Use this script during local QA and demo recording.
 
 - [ ] Set destination from Google Maps
 - [ ] Open popup and confirm status becomes `ACTIVE`
+- [ ] Use the **Arrival radius** slider (50m–2km); confirm the label updates and `chrome.storage.sync` stores `radiusMetres`
+- [ ] Confirm distance line shows `arrival ≤ Xm` matching the slider
 - [ ] Confirm distance and accuracy text update while popup stays open
 
 ### 3) Permission denied handling
