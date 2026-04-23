@@ -22,35 +22,49 @@ const GEO_OPTIONS: PositionOptions = {
 const mapsUrlInput = document.getElementById("maps-url") as HTMLTextAreaElement | null;
 const labelOverrideInput = document.getElementById("label-override") as HTMLInputElement | null;
 const loadDestButton = document.getElementById("load-destination") as HTMLButtonElement | null;
-const statusEl = document.getElementById("status");
+const statePanel = document.getElementById("state-panel");
+const statePill = document.getElementById("state-pill");
+const stateDesc = document.getElementById("state-desc");
 const destinationEl = document.getElementById("destination");
 const radiusSlider = document.getElementById("radius-slider") as HTMLInputElement | null;
 const radiusValueEl = document.getElementById("radius-value");
 const startButton = document.getElementById("start-monitoring") as HTMLButtonElement | null;
+const stopButton = document.getElementById("stop-monitoring") as HTMLButtonElement | null;
+const refreshButton = document.getElementById("refresh-state") as HTMLButtonElement | null;
 const clearButton = document.getElementById("clear-alarm") as HTMLButtonElement | null;
 const arrivalAlarmActions = document.getElementById("arrival-alarm-actions");
 const stopAlarmSoundButton = document.getElementById("stop-alarm-sound") as HTMLButtonElement | null;
 const arrivalCompleteButton = document.getElementById("arrival-complete") as HTMLButtonElement | null;
+const metricsBlock = document.getElementById("metrics-block");
 const distanceEl = document.getElementById("distance");
-const accuracyEl = document.getElementById("accuracy");
+const accuracyBadge = document.getElementById("accuracy-badge");
 const errorEl = document.getElementById("error");
+const historyList = document.getElementById("history-list");
+const historyEmpty = document.getElementById("history-empty");
 
 if (
   !mapsUrlInput ||
   !labelOverrideInput ||
   !loadDestButton ||
-  !statusEl ||
+  !statePanel ||
+  !statePill ||
+  !stateDesc ||
   !destinationEl ||
   !radiusSlider ||
   !radiusValueEl ||
   !startButton ||
+  !stopButton ||
+  !refreshButton ||
   !clearButton ||
   !arrivalAlarmActions ||
   !stopAlarmSoundButton ||
   !arrivalCompleteButton ||
+  !metricsBlock ||
   !distanceEl ||
-  !accuracyEl ||
-  !errorEl
+  !accuracyBadge ||
+  !errorEl ||
+  !historyList ||
+  !historyEmpty
 ) {
   throw new Error("Web app markup is missing required elements.");
 }
@@ -58,18 +72,25 @@ if (
 const mapsUrlNode = mapsUrlInput;
 const labelOverrideNode = labelOverrideInput;
 const loadDestNode = loadDestButton;
-const statusNode = statusEl;
+const statePanelNode = statePanel;
+const statePillNode = statePill;
+const stateDescNode = stateDesc;
 const destinationNode = destinationEl;
 const radiusNode = radiusSlider;
 const radiusValueNode = radiusValueEl;
 const startNode = startButton;
+const stopNode = stopButton;
+const refreshNode = refreshButton;
 const clearNode = clearButton;
 const arrivalAlarmActionsNode = arrivalAlarmActions;
 const stopAlarmSoundNode = stopAlarmSoundButton;
 const arrivalCompleteNode = arrivalCompleteButton;
+const metricsBlockNode = metricsBlock;
 const distanceNode = distanceEl;
-const accuracyNode = accuracyEl;
+const accuracyBadgeNode = accuracyBadge;
 const errorNode = errorEl;
+const historyListNode = historyList;
+const historyEmptyNode = historyEmpty;
 
 let watchId: number | null = null;
 let latestState: AlarmState = defaultState();
@@ -159,16 +180,63 @@ function saveHistory(entries: AlarmHistoryEntry[]): void {
   localStorage.setItem(STORAGE_HISTORY, JSON.stringify(entries.slice(0, 5)));
 }
 
+function formatArrivedAt(ts: number): string {
+  return new Date(ts).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" });
+}
+
+function renderHistory(history: AlarmHistoryEntry[]): void {
+  historyListNode.textContent = "";
+  const hasItems = history.length > 0;
+  historyEmptyNode.classList.toggle("history-hint--hidden", hasItems);
+
+  for (const entry of history) {
+    const li = document.createElement("li");
+    li.className = "history-item";
+    const label = document.createElement("strong");
+    label.textContent = entry.destination.label || "Destination";
+    li.appendChild(label);
+    const meta = document.createElement("span");
+    meta.className = "history-meta";
+    const { lat, lng } = entry.destination.coords;
+    meta.textContent = `${formatArrivedAt(entry.arrivedAt)} · ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    li.appendChild(meta);
+    historyListNode.appendChild(li);
+  }
+}
+
+function setAccuracyBadge(accuracyMetres: number | null): void {
+  if (accuracyMetres === null || !Number.isFinite(accuracyMetres)) {
+    accuracyBadgeNode.textContent = "";
+    accuracyBadgeNode.classList.add("accuracy-badge--hidden");
+    accuracyBadgeNode.classList.remove("accuracy-badge--ok", "accuracy-badge--warn");
+    return;
+  }
+
+  const rounded = Math.round(accuracyMetres);
+  accuracyBadgeNode.textContent = `±${rounded} m`;
+  accuracyBadgeNode.classList.remove("accuracy-badge--hidden");
+  accuracyBadgeNode.classList.toggle("accuracy-badge--warn", accuracyMetres > 500);
+  accuracyBadgeNode.classList.toggle("accuracy-badge--ok", accuracyMetres <= 500);
+}
+
 function renderState(): void {
   const state = latestState;
   if (!state.destination) {
-    statusNode.textContent = "IDLE";
+    statePanelNode.dataset.state = "idle";
+    statePillNode.textContent = "Idle";
+    stateDescNode.textContent = "Open Google Maps and pick a destination.";
   } else if (state.hasArrived) {
-    statusNode.textContent = "ARRIVED";
+    statePanelNode.dataset.state = "arrived";
+    statePillNode.textContent = "Arrived";
+    stateDescNode.textContent = "You entered the arrival radius. Stop the alarm or tap Complete when you are done.";
   } else if (state.isActive) {
-    statusNode.textContent = "ACTIVE";
+    statePanelNode.dataset.state = "active";
+    statePillNode.textContent = "Active";
+    stateDescNode.textContent = "Monitoring your position. Keep this app open while traveling.";
   } else {
-    statusNode.textContent = "IDLE";
+    statePanelNode.dataset.state = "ready";
+    statePillNode.textContent = "Ready";
+    stateDescNode.textContent = "Destination is set. Tap Start monitoring when you begin traveling.";
   }
 
   destinationNode.textContent = state.destination
@@ -178,14 +246,18 @@ function renderState(): void {
   radiusNode.value = String(state.radiusMetres);
   radiusValueNode.textContent = String(state.radiusMetres);
 
-  if (!state.destination) {
+  const showLiveMetrics = Boolean(state.destination) && (state.isActive || watchId !== null) && !state.hasArrived;
+  metricsBlockNode.hidden = !showLiveMetrics;
+
+  if (!showLiveMetrics) {
     distanceNode.textContent = "";
-    accuracyNode.textContent = "";
+    setAccuracyBadge(null);
   }
 
   const canStart = Boolean(state.destination) && !state.hasArrived && watchId === null;
   startNode.disabled = !canStart;
   startNode.textContent = watchId !== null ? "Monitoring…" : "Start monitoring";
+  stopNode.disabled = watchId === null && !state.isActive;
 
   arrivalAlarmActionsNode.hidden = !state.hasArrived;
 }
@@ -199,6 +271,16 @@ function stopWatching(): void {
     latestState = { ...latestState, isActive: false };
     saveState(latestState);
   }
+}
+
+function refreshStateFromStorage(): void {
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
+  stopWatching();
+  latestState = loadState();
+  arrivalNotified = latestState.hasArrived;
+  renderHistory(loadHistory());
+  renderState();
 }
 
 function showArrivalNotification(destination: Destination): void {
@@ -231,6 +313,7 @@ async function handleArrival(destination: Destination): Promise<void> {
   latestState = { ...latestState, hasArrived: true, isActive: false };
   saveState(latestState);
   recordArrival(destination, arrivedAt);
+  renderHistory(loadHistory());
   showArrivalNotification(destination);
   renderState();
 }
@@ -252,11 +335,8 @@ function handleGeoPosition(position: GeolocationPosition): void {
 
   distanceNode.textContent = `Distance: ${Math.round(
     distanceMetres
-  )}m (arrival ≤ ${Math.round(radiusMetres)}m)`;
-  accuracyNode.textContent =
-    accuracyMetres > 500
-      ? `GPS accuracy warning: ${Math.round(accuracyMetres)}m`
-      : `GPS accuracy: ${Math.round(accuracyMetres)}m`;
+  )} m · arrival within ${Math.round(radiusMetres)} m`;
+  setAccuracyBadge(accuracyMetres);
   errorNode.textContent = "";
 
   if (distanceMetres <= radiusMetres && !latestState.hasArrived && !arrivalNotified) {
@@ -362,6 +442,17 @@ startNode.addEventListener("click", () => {
   })();
 });
 
+stopNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  stopWatching();
+  renderState();
+});
+
+refreshNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  refreshStateFromStorage();
+});
+
 stopAlarmSoundNode.addEventListener("click", () => {
   errorNode.textContent = "";
   stopArrivalAlarmLoop();
@@ -392,7 +483,7 @@ clearNode.addEventListener("click", () => {
   labelOverrideNode.value = "";
   errorNode.textContent = "";
   distanceNode.textContent = "";
-  accuracyNode.textContent = "";
+  setAccuracyBadge(null);
   renderState();
 });
 
@@ -427,4 +518,5 @@ if (latestState.isActive) {
   latestState = { ...latestState, isActive: false };
   saveState(latestState);
 }
+renderHistory(loadHistory());
 renderState();

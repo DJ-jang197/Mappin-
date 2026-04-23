@@ -8,6 +8,7 @@
     <meta name="description" content="Mappin': paste a Google Maps link, set a radius, get notified when you arrive." />
     <title>Mappin' (Web)</title>
     <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="stylesheet" href="title-font.css" />
   </head>
   <body>
     <main class="app">
@@ -37,7 +38,10 @@
 
       <section class="card" aria-labelledby="alarm-heading">
         <h2 id="alarm-heading">Alarm</h2>
-        <p id="status" class="status">IDLE</p>
+        <section class="state-panel" id="state-panel" data-state="idle" aria-live="polite">
+          <span class="state-pill" id="state-pill">Idle</span>
+          <p class="state-desc" id="state-desc">Open Google Maps and pick a destination.</p>
+        </section>
         <p id="destination" class="destination"></p>
 
         <div class="field">
@@ -54,7 +58,15 @@
           gesture).
         </p>
         <button id="start-monitoring" type="button" class="btn primary" disabled>Start monitoring</button>
-        <button id="clear-alarm" type="button" class="btn secondary">Clear alarm</button>
+        <div class="button-row button-row--actions">
+          <button id="stop-monitoring" type="button" class="btn secondary">Stop</button>
+          <button id="refresh-state" type="button" class="btn secondary">Refresh</button>
+          <button id="clear-alarm" type="button" class="btn secondary">Clear</button>
+        </div>
+        <p class="button-help">
+          <strong>Stop</strong> — end live GPS; destination stays. <strong>Refresh</strong> — reload destination/state
+          saved in this browser. <strong>Clear</strong> — remove destination and reset this trip.
+        </p>
 
         <div id="arrival-alarm-actions" class="arrival-alarm-actions" hidden>
           <p class="arrival-alarm-hint">
@@ -65,11 +77,22 @@
           <button id="arrival-complete" type="button" class="btn primary">Complete</button>
         </div>
 
-        <p id="distance" class="metric"></p>
-        <p id="accuracy" class="metric"></p>
+        <div id="metrics-block" class="metrics-block" hidden>
+          <p id="distance" class="metric"></p>
+          <div class="accuracy-row">
+            <span class="metric-label">GPS</span>
+            <span id="accuracy-badge" class="accuracy-badge accuracy-badge--hidden" role="status"></span>
+          </div>
+        </div>
         <p id="error" class="error" role="alert"></p>
       </section>
+
+      <section class="card history-block">
+        <h2 class="section-title">Recent arrivals</h2>
+        <p id="history-empty" class="history-hint">No arrivals yet.</p>
+        <ul id="history-list" class="history-list" aria-label="Last five arrivals"></ul>
+      </section>
     </main>
-    <script src="webApp.js"></script>
+    <script src="webApp.js?v=20260423-1"></script>
   </body>
 </html>
