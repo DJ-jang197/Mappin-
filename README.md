@@ -122,12 +122,6 @@ No backend or paid Maps API is required.
 - Payload validation for destination and arrival events.
 - Coordinate range validation and safe text rendering via `textContent`.
 
-## Known limitations
-
-- Extension monitoring runs in popup context; closing popup stops extension-side watch.
-- Mobile browser behavior for background geolocation/notifications/vibration varies by OS/browser.
-- Some Maps links without coordinates cannot be resolved unless desktop DOM fallback is available.
-
 ## Development scripts
 
 ```bash
