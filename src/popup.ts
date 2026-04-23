@@ -1,5 +1,7 @@
 import "./styles/popup.css";
 import { haversine } from "./utils/haversine";
+import { startArrivalVibrationLoop, stopArrivalVibration } from "./utils/arrivalVibration";
+import { primeArrivalAlarmAudio, startArrivalAlarmLoop, stopArrivalAlarmLoop } from "./utils/playArrivalAlarm";
 import { AlarmHistoryEntry, AlarmState, ExtensionMessage } from "./utils/types";
 
 const statePanel = document.getElementById("state-panel");
@@ -18,6 +20,9 @@ const refreshButton = document.getElementById("refresh-state") as HTMLButtonElem
 const clearButton = document.getElementById("clear-alarm") as HTMLButtonElement | null;
 const historyList = document.getElementById("history-list");
 const historyEmpty = document.getElementById("history-empty");
+const arrivalAlarmActions = document.getElementById("arrival-alarm-actions");
+const stopAlarmSoundButton = document.getElementById("stop-alarm-sound") as HTMLButtonElement | null;
+const arrivalCompleteButton = document.getElementById("arrival-complete") as HTMLButtonElement | null;
 
 const GEO_OPTIONS: PositionOptions = {
   enableHighAccuracy: true,
@@ -41,7 +46,10 @@ if (
   !refreshButton ||
   !clearButton ||
   !historyList ||
-  !historyEmpty
+  !historyEmpty ||
+  !arrivalAlarmActions ||
+  !stopAlarmSoundButton ||
+  !arrivalCompleteButton
 ) {
   throw new Error("Popup UI missing required elements.");
 }
@@ -62,6 +70,9 @@ const refreshNode = refreshButton;
 const clearNode = clearButton;
 const historyListNode = historyList;
 const historyEmptyNode = historyEmpty;
+const arrivalAlarmActionsNode = arrivalAlarmActions;
+const stopAlarmSoundNode = stopAlarmSoundButton;
+const arrivalCompleteNode = arrivalCompleteButton;
 
 let watchId: number | null = null;
 let latestState: AlarmState | null = null;
@@ -143,7 +154,8 @@ function updateStatePanel(state: AlarmState): void {
   if (state.hasArrived) {
     statePanelNode.dataset.state = "arrived";
     statePillNode.textContent = "Arrived";
-    stateDescNode.textContent = "You were notified when you entered the arrival radius.";
+    stateDescNode.textContent =
+      "You entered the arrival radius. Stop the alarm or tap Complete when you are done.";
     return;
   }
 
@@ -190,6 +202,8 @@ function renderState(state: AlarmState): void {
 
   // Stop if there is still a live watch or session thinks we are active (covers rare races after arrival).
   stopNode.disabled = watchId === null && !state.isActive;
+
+  arrivalAlarmActionsNode.hidden = !state.hasArrived;
 }
 
 async function applyRadiusToServiceWorker(radiusMetres: number): Promise<void> {
@@ -237,6 +251,8 @@ function applyGeolocationSample(position: GeolocationPosition): void {
 
   if (distanceMetres <= radiusMetres && !latestState.hasArrived && !arrivalSent) {
     arrivalSent = true;
+    startArrivalAlarmLoop();
+    startArrivalVibrationLoop();
     stopWatching();
     void (async () => {
       const message: ExtensionMessage = {
@@ -291,6 +307,8 @@ async function startWatchIfNeeded(): Promise<void> {
   if (!latestState?.destination || latestState.hasArrived || watchId !== null) {
     return;
   }
+
+  primeArrivalAlarmAudio();
 
   if (typeof Notification !== "undefined" && Notification.permission === "default") {
     void Notification.requestPermission();
@@ -360,8 +378,45 @@ stopNode.addEventListener("click", () => {
   void patchSessionState((s) => ({ ...s, isActive: false }));
 });
 
+stopAlarmSoundNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
+});
+
+arrivalCompleteNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
+  void (async () => {
+    let response: SwResponse;
+    try {
+      response = (await chrome.runtime.sendMessage({
+        type: "ACK_ARRIVAL_COMPLETE"
+      } as ExtensionMessage)) as SwResponse;
+    } catch {
+      errorNode.textContent =
+        "Could not reach the background script. Reload the extension on chrome://extensions.";
+      return;
+    }
+    if (response?.ok && response.state) {
+      latestState = response.state;
+      arrivalSent = false;
+      if (response.history) {
+        renderHistory(response.history);
+      }
+      renderState(latestState);
+    } else {
+      errorNode.textContent =
+        (response as { error?: string })?.error ?? "Could not complete arrival. Try Refresh.";
+    }
+  })();
+});
+
 clearNode.addEventListener("click", () => {
   errorNode.textContent = "";
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
   void (async () => {
     let response: SwResponse;
     try {
@@ -400,7 +455,7 @@ startNode.addEventListener("click", () => {
     }
     if (latestState.hasArrived) {
       errorNode.textContent =
-        "This trip is already complete. Tap Clear for a new trip, or pick another place in Maps and Refresh.";
+        "Tap Complete to acknowledge this arrival (or Clear for a new trip), then you can start monitoring again.";
       return;
     }
     if (watchId !== null) {
@@ -426,6 +481,8 @@ radiusNode.addEventListener("input", () => {
 });
 
 window.addEventListener("beforeunload", () => {
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
   stopWatching();
   void patchSessionState((state) => ({ ...state, isActive: false }));
 });

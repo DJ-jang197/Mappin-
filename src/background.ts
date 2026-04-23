@@ -61,8 +61,10 @@ function showArrivalNotification(label: string): void {
       {
         type: "basic",
         iconUrl: NOTIFICATION_ICON_URL,
-        title: "Mappin — you've arrived",
-        message: `You arrived at ${label || "your destination"}.`
+        title: "Mappin' — you've arrived",
+        message: `You arrived at ${label || "your destination"}.`,
+        priority: 2,
+        silent: false
       },
       () => {
         if (chrome.runtime.lastError) {
@@ -148,6 +150,24 @@ async function handleExtensionMessage(message: ExtensionMessage): Promise<Messag
     await setSessionState({ ...state, hasArrived: true, isActive: false });
     await appendArrivalHistory(historyEntry);
     showArrivalNotification(state.destination.label || "your destination");
+    return {
+      ok: true,
+      state: await getFullState(),
+      history: await getAlarmHistory()
+    };
+  }
+
+  if (message.type === "ACK_ARRIVAL_COMPLETE") {
+    const state = await getFullState();
+    if (!state.destination || !state.hasArrived) {
+      return {
+        ok: true,
+        skipped: true,
+        state: await getFullState(),
+        history: await getAlarmHistory()
+      };
+    }
+    await setSessionState({ ...state, hasArrived: false, isActive: false });
     return {
       ok: true,
       state: await getFullState(),

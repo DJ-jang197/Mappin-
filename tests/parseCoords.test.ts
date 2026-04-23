@@ -50,6 +50,17 @@ describe("parseDestinationFromMapsPage", () => {
     expect(result?.coords).toEqual({ lat: 43.4723, lng: -80.5449 });
   });
 
+  it("parses coordinates from !3dLAT!4dLNG in URL data blob", () => {
+    const doc = createFakeDocument("Some place - Google Maps");
+    const result = parseDestinationFromMapsPage(
+      "https://www.google.com/maps/place/Some+Restaurant/data=!4m2!3m1!1s0x0:0x0!3d43.4723!4d-80.5449",
+      doc,
+      { now: fixedNow }
+    );
+
+    expect(result?.coords).toEqual({ lat: 43.4723, lng: -80.5449 });
+  });
+
   it("parses coordinates from q=LAT,LNG", () => {
     const doc = createFakeDocument("Pinned location - Google Maps");
     const result = parseDestinationFromMapsPage("https://www.google.com/maps?q=43.4723,-80.5449", doc, {

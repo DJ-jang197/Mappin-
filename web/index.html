@@ -3,16 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1565c0" />
+    <meta name="theme-color" content="#1DB954" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="description" content="Mappin: paste a Google Maps link, set a radius, get notified when you arrive." />
-    <title>Mappin (Web)</title>
+    <meta name="description" content="Mappin': paste a Google Maps link, set a radius, get notified when you arrive." />
+    <title>Mappin' (Web)</title>
     <link rel="manifest" href="manifest.webmanifest" />
   </head>
   <body>
     <main class="app">
       <header class="header">
-        <h1 class="app-title"><span class="app-title-brand">Mappin</span></h1>
+        <h1 class="app-title"><span class="app-title-brand">Mappin'</span></h1>
         <p class="tagline">Paste a Maps link, start monitoring, get an alert when you are within range.</p>
       </header>
 
@@ -55,6 +55,15 @@
         </p>
         <button id="start-monitoring" type="button" class="btn primary" disabled>Start monitoring</button>
         <button id="clear-alarm" type="button" class="btn secondary">Clear alarm</button>
+
+        <div id="arrival-alarm-actions" class="arrival-alarm-actions" hidden>
+          <p class="arrival-alarm-hint">
+            Alarm is looping. <strong>Stop alarm</strong> silences only. <strong>Complete</strong> stops the sound and lets you
+            start monitoring again for this destination.
+          </p>
+          <button id="stop-alarm-sound" type="button" class="btn secondary">Stop alarm</button>
+          <button id="arrival-complete" type="button" class="btn primary">Complete</button>
+        </div>
 
         <p id="distance" class="metric"></p>
         <p id="accuracy" class="metric"></p>

@@ -1,8 +1,8 @@
 {
-  "name": "location-alarm",
+  "name": "mappin-extension",
   "version": "0.1.0",
   "private": true,
-  "description": "MV3 Chrome extension that alerts on location arrival in Google Maps.",
+  "description": "Mappin' — MV3 Chrome extension that alerts on location arrival in Google Maps.",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch",

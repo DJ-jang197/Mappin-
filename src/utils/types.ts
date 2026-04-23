@@ -25,5 +25,6 @@ export type ExtensionMessage =
   | { type: "SET_DESTINATION"; payload: Destination }
   | { type: "CLEAR_ALARM" }
   | { type: "ARRIVED"; payload: { arrivedAt: number } }
+  | { type: "ACK_ARRIVAL_COMPLETE" }
   | { type: "GET_STATE" }
   | { type: "SET_RADIUS"; payload: { radiusMetres: number } };

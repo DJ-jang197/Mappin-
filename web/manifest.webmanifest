@@ -1,9 +1,17 @@
 {
-  "name": "Mappin",
-  "short_name": "Mappin",
+  "name": "Mappin'",
+  "short_name": "Mappin'",
   "description": "Paste a Google Maps URL and get notified when you arrive within your chosen radius.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1565c0"
+  "background_color": "#1DB954",
+  "theme_color": "#1DB954",
+  "icons": [
+    {
+      "src": "icons/icon-128.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
 }

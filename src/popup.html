@@ -3,11 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mappin</title>
+    <title>Mappin'</title>
   </head>
   <body>
     <main class="popup-root">
-      <h1 class="app-title"><span class="app-title-brand">Mappin</span></h1>
+      <h1 class="app-title"><span class="app-title-brand">Mappin'</span></h1>
 
       <section class="state-panel" id="state-panel" data-state="idle" aria-live="polite">
         <span class="state-pill" id="state-pill">Idle</span>
@@ -28,6 +28,21 @@
       </div>
 
       <p id="error" class="error-banner" role="alert"></p>
+
+      <div id="arrival-alarm-actions" class="arrival-alarm-actions" hidden>
+        <p class="arrival-alarm-hint">
+          Alarm is looping. <strong>Stop alarm</strong> silences only. <strong>Complete</strong> stops the sound and lets you
+          monitor this destination again.
+        </p>
+        <div class="button-row">
+          <button type="button" id="stop-alarm-sound" class="btn btn-secondary" title="Silence the repeating alarm">
+            Stop alarm
+          </button>
+          <button type="button" id="arrival-complete" class="btn btn-primary" title="Stop sound and acknowledge arrival">
+            Complete
+          </button>
+        </div>
+      </div>
 
       <p id="geo-hint" class="hint">
         Location runs only while this popup is open. Tap <strong>Start monitoring</strong> when you travel —

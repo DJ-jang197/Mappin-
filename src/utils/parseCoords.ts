@@ -1,6 +1,8 @@
 import { Destination } from "./types";
 
 const PATH_REGEX = /@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/;
+/** Many Maps deep links encode lat/lng as !3dLAT!4dLNG in the URL fragment or path. */
+const DATA_3D_4D_REGEX = /!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/;
 const COORDS_QUERY_VALUE_REGEX = /^(-?\d+(?:\.\d+)?),\s*(-?\d+(?:\.\d+)?)$/;
 
 interface DocumentLike {
@@ -87,10 +89,24 @@ export function parseDestinationFromMapsPage(
     return null;
   }
 
-  const pathMatch = url.pathname.match(PATH_REGEX);
+  const hrefForAt = `${url.pathname}${url.search}${url.hash}`;
+  const pathMatch = hrefForAt.match(PATH_REGEX);
   if (pathMatch) {
     const lat = toNumber(pathMatch[1]);
     const lng = toNumber(pathMatch[2]);
+    if (lat !== null && lng !== null && areValidCoordinates(lat, lng)) {
+      return {
+        coords: { lat, lng },
+        label: readLabelFromTitle(doc.title),
+        setAt: now()
+      };
+    }
+  }
+
+  const dataMatch = url.href.match(DATA_3D_4D_REGEX);
+  if (dataMatch) {
+    const lat = toNumber(dataMatch[1]);
+    const lng = toNumber(dataMatch[2]);
     if (lat !== null && lng !== null && areValidCoordinates(lat, lng)) {
       return {
         coords: { lat, lng },

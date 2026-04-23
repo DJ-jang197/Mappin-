@@ -12,21 +12,25 @@ function destinationKey(destination: Destination): string {
 }
 
 async function sendDestinationIfChanged(): Promise<void> {
-  const destination = parseDestinationFromMapsPage(window.location.href, document);
-  if (!destination) {
-    console.info("[location-alarm] No destination extracted from Maps page.");
-    return;
-  }
+  try {
+    const destination = parseDestinationFromMapsPage(window.location.href, document);
+    if (!destination) {
+      console.info("[location-alarm] No destination extracted from Maps page.");
+      return;
+    }
 
-  const nextKey = destinationKey(destination);
-  if (lastSentDestinationKey === nextKey) {
-    return;
-  }
+    const nextKey = destinationKey(destination);
+    if (lastSentDestinationKey === nextKey) {
+      return;
+    }
 
-  const message: ExtensionMessage = { type: "SET_DESTINATION", payload: destination };
-  await chrome.runtime.sendMessage(message);
-  lastSentDestinationKey = nextKey;
-  console.info("[location-alarm] Destination sent.", destination);
+    const message: ExtensionMessage = { type: "SET_DESTINATION", payload: destination };
+    await chrome.runtime.sendMessage(message);
+    lastSentDestinationKey = nextKey;
+    console.info("[location-alarm] Destination sent.", destination);
+  } catch (err) {
+    console.error("[location-alarm] Failed to send destination to extension:", err);
+  }
 }
 
 function scheduleParse(reason: string): void {
@@ -40,10 +44,11 @@ function scheduleParse(reason: string): void {
   }, RECHECK_DEBOUNCE_MS);
 }
 
-function checkUrlChange(reason: string): void {
-  if (window.location.href === lastHref) {
-    return;
-  }
+/**
+ * Maps often updates the page (title, meta, panels) when you pick a place before or without
+ * changing `location.href`. We must re-parse on those DOM changes — not only when the URL string changes.
+ */
+function syncHrefAndScheduleParse(reason: string): void {
   lastHref = window.location.href;
   scheduleParse(reason);
 }
@@ -52,26 +57,27 @@ function installSpaNavigationHooks(): void {
   const originalPushState = history.pushState.bind(history);
   history.pushState = (...args: Parameters<History["pushState"]>) => {
     originalPushState(...args);
-    checkUrlChange("pushState");
+    syncHrefAndScheduleParse("pushState");
   };
 
   const originalReplaceState = history.replaceState.bind(history);
   history.replaceState = (...args: Parameters<History["replaceState"]>) => {
     originalReplaceState(...args);
-    checkUrlChange("replaceState");
+    syncHrefAndScheduleParse("replaceState");
   };
 
-  window.addEventListener("popstate", () => checkUrlChange("popstate"));
+  window.addEventListener("popstate", () => syncHrefAndScheduleParse("popstate"));
 
   // Maps updates portions of the page without full navigations; observe to catch route/title churn.
   const observer = new MutationObserver(() => {
-    checkUrlChange("mutation");
+    syncHrefAndScheduleParse("mutation");
   });
   observer.observe(document.documentElement, {
     subtree: true,
     childList: true,
     attributes: true,
-    attributeFilter: ["href"]
+    // Place pages update `meta[itemprop=latitude|longitude]` via the `content` attribute; href-only misses that.
+    attributeFilter: ["href", "content"]
   });
 }
 

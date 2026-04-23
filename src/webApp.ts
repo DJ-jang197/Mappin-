@@ -1,5 +1,7 @@
 import "./styles/webApp.css";
 import { haversine } from "./utils/haversine";
+import { startArrivalVibrationLoop, stopArrivalVibration } from "./utils/arrivalVibration";
+import { primeArrivalAlarmAudio, startArrivalAlarmLoop, stopArrivalAlarmLoop } from "./utils/playArrivalAlarm";
 import { parseDestinationFromMapsPage } from "./utils/parseCoords";
 import { AlarmHistoryEntry, AlarmState, Destination } from "./utils/types";
 
@@ -26,6 +28,9 @@ const radiusSlider = document.getElementById("radius-slider") as HTMLInputElemen
 const radiusValueEl = document.getElementById("radius-value");
 const startButton = document.getElementById("start-monitoring") as HTMLButtonElement | null;
 const clearButton = document.getElementById("clear-alarm") as HTMLButtonElement | null;
+const arrivalAlarmActions = document.getElementById("arrival-alarm-actions");
+const stopAlarmSoundButton = document.getElementById("stop-alarm-sound") as HTMLButtonElement | null;
+const arrivalCompleteButton = document.getElementById("arrival-complete") as HTMLButtonElement | null;
 const distanceEl = document.getElementById("distance");
 const accuracyEl = document.getElementById("accuracy");
 const errorEl = document.getElementById("error");
@@ -40,6 +45,9 @@ if (
   !radiusValueEl ||
   !startButton ||
   !clearButton ||
+  !arrivalAlarmActions ||
+  !stopAlarmSoundButton ||
+  !arrivalCompleteButton ||
   !distanceEl ||
   !accuracyEl ||
   !errorEl
@@ -56,6 +64,9 @@ const radiusNode = radiusSlider;
 const radiusValueNode = radiusValueEl;
 const startNode = startButton;
 const clearNode = clearButton;
+const arrivalAlarmActionsNode = arrivalAlarmActions;
+const stopAlarmSoundNode = stopAlarmSoundButton;
+const arrivalCompleteNode = arrivalCompleteButton;
 const distanceNode = distanceEl;
 const accuracyNode = accuracyEl;
 const errorNode = errorEl;
@@ -175,6 +186,8 @@ function renderState(): void {
   const canStart = Boolean(state.destination) && !state.hasArrived && watchId === null;
   startNode.disabled = !canStart;
   startNode.textContent = watchId !== null ? "Monitoring…" : "Start monitoring";
+
+  arrivalAlarmActionsNode.hidden = !state.hasArrived;
 }
 
 function stopWatching(): void {
@@ -196,8 +209,9 @@ function showArrivalNotification(destination: Destination): void {
     return;
   }
   try {
-    new Notification("Mappin — you've arrived", {
-      body: `You arrived at ${destination.label || "your destination"}.`
+    new Notification("Mappin' — you've arrived", {
+      body: `You arrived at ${destination.label || "your destination"}.`,
+      silent: false
     });
   } catch {
     // Ignore notification failures (e.g. mobile policy).
@@ -212,6 +226,8 @@ function recordArrival(destination: Destination, arrivedAt: number): void {
 
 async function handleArrival(destination: Destination): Promise<void> {
   const arrivedAt = Date.now();
+  startArrivalAlarmLoop();
+  startArrivalVibrationLoop();
   latestState = { ...latestState, hasArrived: true, isActive: false };
   saveState(latestState);
   recordArrival(destination, arrivedAt);
@@ -277,6 +293,8 @@ async function startWatchIfNeeded(): Promise<void> {
     return;
   }
 
+  primeArrivalAlarmAudio();
+
   if (typeof Notification !== "undefined" && Notification.permission === "default") {
     void Notification.requestPermission();
   }
@@ -329,8 +347,12 @@ loadDestNode.addEventListener("click", () => {
 startNode.addEventListener("click", () => {
   errorNode.textContent = "";
   void (async () => {
-    if (!latestState.destination || latestState.hasArrived) {
+    if (!latestState.destination) {
       errorNode.textContent = "Load a destination first.";
+      return;
+    }
+    if (latestState.hasArrived) {
+      errorNode.textContent = "Tap Complete to acknowledge this arrival, then you can start monitoring again.";
       return;
     }
     if (watchId !== null) {
@@ -340,7 +362,25 @@ startNode.addEventListener("click", () => {
   })();
 });
 
+stopAlarmSoundNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
+});
+
+arrivalCompleteNode.addEventListener("click", () => {
+  errorNode.textContent = "";
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
+  latestState = { ...latestState, hasArrived: false, isActive: false };
+  arrivalNotified = false;
+  saveState(latestState);
+  renderState();
+});
+
 clearNode.addEventListener("click", () => {
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
   stopWatching();
   latestState = {
     ...defaultState(),
@@ -377,6 +417,8 @@ radiusNode.addEventListener("input", () => {
 });
 
 window.addEventListener("beforeunload", () => {
+  stopArrivalAlarmLoop();
+  stopArrivalVibration();
   stopWatching();
 });
 
