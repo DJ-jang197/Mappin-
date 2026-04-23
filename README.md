@@ -40,6 +40,15 @@ Most users on mobile should use the web app.
 
 ## Quick start
 
+### 0) Clone this repository
+
+```bash
+git clone <YOUR_REPO_URL>
+cd Mappin
+```
+
+If your local folder name is different, run `cd` into whatever folder contains this `README.md`.
+
 ### 1) Install and build
 
 ```bash
@@ -53,6 +62,16 @@ npm run build
 2. Enable **Developer mode**
 3. Click **Load unpacked**
 4. Select your repo `dist` folder
+
+### 3) Use the web app locally
+
+```bash
+npx --yes serve dist/web -p 4173
+```
+
+Then open:
+
+- `http://localhost:4173/`
 
 ## Web app usage
 
